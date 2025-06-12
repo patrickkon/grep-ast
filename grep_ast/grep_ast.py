@@ -63,6 +63,16 @@ class TreeContext:
 
         root_node = tree.root_node
         self.walk_tree(root_node)
+        # print(self.header)
+        # for i in range(len(self.header)):
+        #     print(i)
+        #     print(self.header[i])
+        # print(self.filename)
+        # while True:
+        #     x=1
+        # print(self.scopes[8])
+        # while True:
+        #     x=1
 
         if self.verbose:
             scope_width = max(len(str(set(self.scopes[i]))) for i in range(self.num_lines - 1))
@@ -74,7 +84,7 @@ class TreeContext:
 
             if len(header) > 1:
                 size, head_start, head_end = header[0]
-                if size > self.header_max:
+                if size > self.header_max: # TODO: need to be careful here, since my class/functions/multi-line constructs may exceed the header_max ... since the default is only 10 lines
                     head_end = head_start + self.header_max
             else:
                 head_start = i
@@ -131,8 +141,16 @@ class TreeContext:
             self.add_parent_scopes(bottom_line)
 
         if self.parent_context:
+            # For each line of interest, show all lines of the larger parent scope up till but excluding the root node (i.e., start of the file till end of file) [this is my current interpretation]
+            # print(self.lines_of_interest)
             for i in set(self.lines_of_interest):
                 self.add_parent_scopes(i)
+            # print("me is dine")
+            # print(self.show_lines)
+            print("Filename: ", self.filename)
+            print("Show lines: ", self.show_lines)
+            # while True:
+            #     x=1
 
         if self.child_context:
             for i in set(self.lines_of_interest):
@@ -248,25 +266,54 @@ class TreeContext:
 
         if i >= len(self.scopes):
             return
-
+        # print(self.scopes[i])
+        # print(i)
+        # while True:
+        #     x=1
         for line_num in self.scopes[i]:
             head_start, head_end = self.header[line_num]
             if head_start > 0 or self.show_top_of_file_parent_scope:
-                self.show_lines.update(range(head_start, head_end))
+                # print("me iss here: ", head_start, head_end)
+                # print("me is god: ", range(head_start, head_end))
+                self.show_lines.update(range(head_start, head_end))  # though head_end is not inclusive, we did head_end + 1 above such that the actual head_end is included
 
             if self.last_line:
                 last_line = self.get_last_line_of_scope(line_num)
                 self.add_parent_scopes(last_line)
 
     def walk_tree(self, node, depth=0):
+        """
+        This function is called recursively to traverse the AST.
+        
+        At the beginning, node is the root_node of the AST. This will recursively traverse all child nodes of the root_node. 
+
+        self.scopes meaning: self.scopes[8] with the value {0, 8, 7} means in the context of the AST traversal.
+            self.scopes[8] represents all the scopes that line 8 is contained within. The set {0, 8, 7} means that line 8 is contained within three different scopes that start at:
+            Line 0 (typically the file/module scope)
+            Line 7 (a scope that started one line before)
+            Line 8 (its own scope)
+
+        In walk_tree, we will be adding 0 8 7 iteratively into the self.scopes[8] set. This is possible because each line contained within the current node will be used to updated the self.scopes set. That is, if line 8 is within node, then self.scopes[8] will be added with the starting_line of the node (where for the root node this will be 0). 
+
+        """
+        # print(node.type)
+        # while True:
+        #     x=1
+
+        #Gets the start and end points of the node. In tree-sitter, each node has position information in the form of (line, column) tuples
         start = node.start_point
         end = node.end_point
+
+        with open("tree_sitter_output.txt", "a") as f:
+            f.write(f"Start: {start}, End: {end}\n")
+            f.write(f"Node type: {node.type}\n")
+            f.write(f"Node text: {node.text}\n")
 
         start_line = start[0]
         end_line = end[0]
         size = end_line - start_line
 
-        self.nodes[start_line].append(node)
+        self.nodes[start_line].append(node) # self.nodes is a list of lists, where self.nodes[i] contains all AST nodes that begin on line i
 
         # dump(start_line, end_line, node.text)
         if self.verbose and node.is_named:
@@ -283,12 +330,25 @@ class TreeContext:
             )
 
         if size:
+            """
+            If the node spans multiple lines (size > 0)
+            Adds a tuple of (size, start_line, end_line) to self.header[start_line]
+            This tracks "header" lines that begin multi-line constructs (like function definitions)
+            Actual size should be size + 1, i.e., if size = 1, there are actually 2 lines. 
+            """
             self.header[start_line].append((size, start_line, end_line))
 
         for i in range(start_line, end_line + 1):
+            """
+            For each line in the node's range
+            Adds the start_line to that line's set of scopes
+            This builds a mapping of which lines are contained within which scopes
+            """
             self.scopes[i].add(start_line)
 
         for child in node.children:
             self.walk_tree(child, depth + 1)
-
+        # print(self.scopes[8])
+        # while True:
+        #     x=1
         return start_line, end_line

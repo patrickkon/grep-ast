@@ -1,0 +1,2 @@
+tree-sitter-language-pack
+pathspec
