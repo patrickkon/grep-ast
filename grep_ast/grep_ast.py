@@ -63,16 +63,6 @@ class TreeContext:
 
         root_node = tree.root_node
         self.walk_tree(root_node)
-        # print(self.header)
-        # for i in range(len(self.header)):
-        #     print(i)
-        #     print(self.header[i])
-        # print(self.filename)
-        # while True:
-        #     x=1
-        # print(self.scopes[8])
-        # while True:
-        #     x=1
 
         if self.verbose:
             scope_width = max(len(str(set(self.scopes[i]))) for i in range(self.num_lines - 1))
@@ -82,7 +72,7 @@ class TreeContext:
                 scopes = str(sorted(set(self.scopes[i])))
                 print(f"{scopes.ljust(scope_width)}", i, self.lines[i])
 
-            if len(header) > 1:
+            if len(header) > 0: # i changed this from 1 to 0, i think they have a bug..
                 size, head_start, head_end = header[0]
                 if size > self.header_max: # TODO: need to be careful here, since my class/functions/multi-line constructs may exceed the header_max ... since the default is only 10 lines
                     head_end = head_start + self.header_max
@@ -90,10 +80,37 @@ class TreeContext:
                 head_start = i
                 head_end = i + 1
 
-            self.header[i] = head_start, head_end
+            self.header[i] = head_start, head_end # we are setting the largest header for a particular start line i. This is set by header[0] above. 
 
         self.show_lines = set()
         self.lines_of_interest = set()
+
+        # print(self.header)
+        # for i in range(len(self.header)):
+        #     print(i)
+        #     print(self.header[i])
+        # print(self.filename)
+        with open("tree_sitter_header_output.txt", "a") as f:
+            for i in range(len(self.header)):
+                f.write(f"{i}\n")
+                f.write(f"{self.header[i]}\n")
+            f.write(f"{self.filename}\n")
+        with open("tree_sitter_scope_output.txt", "a") as f:        
+            for i in range(len(self.scopes)):
+                f.write(f"{i}\n")
+                f.write(f"{self.scopes[i]}\n")
+            f.write(f"{self.filename}\n")
+        with open("tree_sitter_node_output.txt", "a") as f:
+            for i in range(len(self.nodes)):
+                f.write(f"{i}\n")
+                f.write(f"{self.nodes[i]}\n")
+            f.write(f"{self.filename}\n")
+        print(self.filename)
+        # while True:
+        #     x=1
+        # print(self.scopes[8])
+        # while True:
+        #     x=1
 
         return
 
@@ -147,8 +164,8 @@ class TreeContext:
                 self.add_parent_scopes(i)
             # print("me is dine")
             # print(self.show_lines)
-            print("Filename: ", self.filename)
-            print("Show lines: ", self.show_lines)
+            print("In grep_ast.py. Filename now: ", self.filename)
+            # print("Show lines: ", self.show_lines)
             # while True:
             #     x=1
 
@@ -331,10 +348,9 @@ class TreeContext:
 
         if size:
             """
-            If the node spans multiple lines (size > 0)
+            If the node spans multiple lines (size >= 1, ACTUAL SIZE >= 2) Actual size should be size + 1, i.e., if size = 1, there are actually 2 lines. This is why you see many nodes not having a header, since this is heuristic designed to capture say functions.
             Adds a tuple of (size, start_line, end_line) to self.header[start_line]
             This tracks "header" lines that begin multi-line constructs (like function definitions)
-            Actual size should be size + 1, i.e., if size = 1, there are actually 2 lines. 
             """
             self.header[start_line].append((size, start_line, end_line))
 
